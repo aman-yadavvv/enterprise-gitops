@@ -60,26 +60,29 @@ pipeline {
 
         stage('Update GitOps Manifests') {
             steps {
-                // Isolate manifest updates inside a distinct workspace folder
                 dir('manifest-updates-workspace') {
-                    // Pull GitHub personal access token safely from Jenkins credential store
                     withCredentials([usernamePassword(credentialsId: 'github-token-id', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
                         
                         sh "git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@${GITOPS_REPO} ."
                         
-                        // Dynamically update placeholder tags to match our new ECR images
                         sh "sed -i 's|image: ${ECR_REGISTRY}/${BACKEND_REPO}:.*|image: ${ECR_REGISTRY}/${BACKEND_REPO}:${env.IMAGE_TAG}|g' environments/dev/backend-deployment.yaml"
                         sh "sed -i 's|image: ${ECR_REGISTRY}/${FRONTEND_REPO}:.*|image: ${ECR_REGISTRY}/${FRONTEND_REPO}:${env.IMAGE_TAG}|g' environments/dev/frontend-deployment.yaml"
                         
-                        // Commit configuration changes back into the manifest repo
                         sh 'git config user.email "jenkins-automation@enterprise.com"'
                         sh 'git config user.name "Jenkins Automation Server"'
-                        sh "git add ."
-                        sh "git commit -m 'GitOps: Deploying image tag ${env.IMAGE_TAG} [skip ci]'"
-                        sh "git push origin main"
+                        
+                        // Smart Git Commit: Only commit if there are actual diff changes
+                        sh '''
+                            git add .
+                            if git diff-index --quiet HEAD --; then
+                                echo "No changes detected in manifests. Skipping git commit."
+                            else
+                                git commit -m "GitOps: Deploying image tag ${IMAGE_TAG} [skip ci]"
+                                git push origin main
+                            fi
+                        '''
                     }
                 }
             }
         }
-    }
 }
