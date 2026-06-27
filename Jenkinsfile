@@ -58,10 +58,13 @@ pipeline {
             }
         }
 
-        stage('Update GitOps Manifests') {
+       stage('Update GitOps Manifests') {
             steps {
                 dir('manifest-updates-workspace') {
                     withCredentials([usernamePassword(credentialsId: 'github-token-id', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+                        
+                        // Clean up any leftovers from previous failed builds
+                        sh "rm -rf ./* ./.* 2>/dev/null || true"
                         
                         sh "git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@${GITOPS_REPO} ."
                         
@@ -71,7 +74,6 @@ pipeline {
                         sh 'git config user.email "jenkins-automation@enterprise.com"'
                         sh 'git config user.name "Jenkins Automation Server"'
                         
-                        // Smart Git Commit: Only commit if there are actual diff changes
                         sh '''
                             git add .
                             if git diff-index --quiet HEAD --; then
