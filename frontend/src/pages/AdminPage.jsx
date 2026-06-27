@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  FiLayout, FiPackage, FiShoppingBag, FiUsers, FiLogOut, 
-  FiDollarSign, FiPlus, FiTrash2, FiEdit2, FiX, FiCheck, FiHome, FiTrendingUp 
+import { useQueryClient } from 'react-query'
+import {
+  FiLayout, FiPackage, FiShoppingBag, FiUsers, FiLogOut,
+  FiDollarSign, FiPlus, FiTrash2, FiEdit2, FiX, FiCheck, FiHome, FiTrendingUp
 } from 'react-icons/fi'
 import { useAuth } from '../hooks/useAuth'
 import { getProducts, createProduct, updateProduct, deleteProduct } from '../services/productService'
@@ -15,6 +16,7 @@ import toast from 'react-hot-toast'
 const AdminPage = () => {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('dashboard')
 
   // Data states
@@ -36,7 +38,8 @@ const AdminPage = () => {
     brand: '',
     stock: '',
     sizes: ['US 9', 'US 9.5', 'US 10'],
-    images: [{ url: '/assets/sneaker-1.webp', isMain: true }]
+    imageUrl: '/assets/sneaker-1.webp',
+    isFeatured: false
   })
 
   // Authorize user
@@ -84,10 +87,16 @@ const AdminPage = () => {
     e.preventDefault()
     try {
       const payload = {
-        ...productForm,
+        name: productForm.name,
+        description: productForm.description,
+        category: productForm.category,
+        brand: productForm.brand,
+        sizes: productForm.sizes,
         price: Number(productForm.price),
         discountPrice: productForm.discountPrice ? Number(productForm.discountPrice) : undefined,
-        stock: Number(productForm.stock)
+        stock: Number(productForm.stock),
+        isFeatured: !!productForm.isFeatured,
+        images: [{ url: productForm.imageUrl || '/assets/sneaker-1.webp', isMain: true }]
       }
 
       if (editingProduct) {
@@ -101,6 +110,8 @@ const AdminPage = () => {
       setIsProductModalOpen(false)
       setEditingProduct(null)
       fetchAdminData()
+      queryClient.invalidateQueries('featuredProducts')
+      queryClient.invalidateQueries('products')
     } catch (error) {
       toast.error(error.response?.data?.message || 'Error processing product')
     }
@@ -112,6 +123,8 @@ const AdminPage = () => {
         await deleteProduct(id)
         toast.success('Product deleted')
         fetchAdminData()
+        queryClient.invalidateQueries('featuredProducts')
+        queryClient.invalidateQueries('products')
       } catch (error) {
         toast.error('Failed to delete product')
       }
@@ -129,7 +142,8 @@ const AdminPage = () => {
       brand: prod.brand,
       stock: prod.stock,
       sizes: prod.sizes,
-      images: prod.images.length ? prod.images : [{ url: '/assets/sneaker-1.webp', isMain: true }]
+      isFeatured: prod.isFeatured || false,
+      imageUrl: prod.images?.[0]?.url || '/assets/sneaker-1.webp'
     })
     setIsProductModalOpen(true)
   }
@@ -145,7 +159,8 @@ const AdminPage = () => {
       brand: '',
       stock: '',
       sizes: ['US 8', 'US 9', 'US 10'],
-      images: [{ url: '/assets/sneaker-1.webp', isMain: true }]
+      isFeatured: false,
+      imageUrl: '/assets/sneaker-1.webp'
     })
     setIsProductModalOpen(true)
   }
@@ -220,11 +235,10 @@ const AdminPage = () => {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 ${
-                    activeTab === item.id 
-                      ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/20' 
-                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                  }`}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 ${activeTab === item.id
+                    ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/20'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                    }`}
                 >
                   <Icon className="w-5 h-5" />
                   {item.name}
@@ -235,14 +249,14 @@ const AdminPage = () => {
         </div>
 
         <div className="p-4 border-t border-slate-800 space-y-2">
-          <Link 
-            to="/" 
+          <Link
+            to="/"
             className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-slate-200 rounded-xl text-sm font-medium transition-all"
           >
             <FiHome className="w-5 h-5" />
             Back to Site
           </Link>
-          <button 
+          <button
             onClick={() => navigate('/')}
             className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl text-sm font-medium transition-all"
           >
@@ -307,7 +321,7 @@ const AdminPage = () => {
                   </h3>
                   <p className="text-xs text-slate-400 mb-6">Delivery completion rate analysis</p>
                 </div>
-                
+
                 <div className="space-y-4">
                   {[
                     { label: 'Delivered', value: orders.filter(o => o.status === 'Delivered').length, pct: orders.length ? (orders.filter(o => o.status === 'Delivered').length / orders.length) * 100 : 0, color: 'bg-emerald-500' },
@@ -350,12 +364,11 @@ const AdminPage = () => {
                           <td className="py-3 text-xs">{new Date(ord.createdAt).toLocaleDateString()}</td>
                           <td className="py-3 font-bold">${ord.totalPrice.toFixed(2)}</td>
                           <td className="py-3">
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                              ord.status === 'Delivered' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${ord.status === 'Delivered' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
                               ord.status === 'Shipped' ? 'bg-sky-500/10 text-sky-400 border-sky-500/30' :
-                              ord.status === 'Cancelled' ? 'bg-red-500/10 text-red-400 border-red-500/30' :
-                              'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                            }`}>
+                                ord.status === 'Cancelled' ? 'bg-red-500/10 text-red-400 border-red-500/30' :
+                                  'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                              }`}>
                               {ord.status}
                             </span>
                           </td>
@@ -373,7 +386,7 @@ const AdminPage = () => {
           <div className="space-y-6">
             <div className="flex justify-between items-center bg-slate-900 p-4 border border-slate-800 rounded-2xl shadow-md">
               <span className="text-sm text-slate-400">{products.length} products loaded</span>
-              <button 
+              <button
                 onClick={openCreateProduct}
                 className="flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-sky-500/20"
               >
@@ -398,9 +411,9 @@ const AdminPage = () => {
                   {products.map(prod => (
                     <tr key={prod._id} className="hover:bg-slate-800/20 text-slate-300 transition-colors">
                       <td className="p-4 flex items-center gap-3">
-                        <img 
-                          src={prod.images?.[0]?.url || '/assets/sneaker-1.webp'} 
-                          alt={prod.name} 
+                        <img
+                          src={prod.images?.[0]?.url || '/assets/sneaker-1.webp'}
+                          alt={prod.name}
                           className="w-10 h-10 object-contain bg-slate-800 rounded-lg border border-slate-700"
                         />
                         <span className="font-semibold text-white">{prod.name}</span>
@@ -422,13 +435,13 @@ const AdminPage = () => {
                       </td>
                       <td className="p-4">
                         <div className="flex justify-center gap-2">
-                          <button 
+                          <button
                             onClick={() => openEditProduct(prod)}
                             className="p-2 bg-slate-800 hover:bg-sky-500 hover:text-white rounded-lg text-slate-400 transition-all border border-slate-700"
                           >
                             <FiEdit2 className="w-4 h-4" />
                           </button>
-                          <button 
+                          <button
                             onClick={() => handleDeleteProduct(prod._id)}
                             className="p-2 bg-slate-800 hover:bg-red-500 hover:text-white rounded-lg text-slate-400 transition-all border border-slate-700"
                           >
@@ -470,17 +483,16 @@ const AdminPage = () => {
                     <td className="p-4 font-medium text-white">{ord.items?.length || 0} items</td>
                     <td className="p-4 font-bold text-white">${ord.totalPrice.toFixed(2)}</td>
                     <td className="p-4">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                        ord.status === 'Delivered' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${ord.status === 'Delivered' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
                         ord.status === 'Shipped' ? 'bg-sky-500/10 text-sky-400 border-sky-500/30' :
-                        ord.status === 'Cancelled' ? 'bg-red-500/10 text-red-400 border-red-500/30' :
-                        'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                      }`}>
+                          ord.status === 'Cancelled' ? 'bg-red-500/10 text-red-400 border-red-500/30' :
+                            'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                        }`}>
                         {ord.status}
                       </span>
                     </td>
                     <td className="p-4">
-                      <select 
+                      <select
                         value={ord.status}
                         onChange={(e) => handleUpdateOrderStatus(ord._id, e.target.value)}
                         className="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg text-xs p-1.5 focus:outline-none focus:border-sky-500"
@@ -522,24 +534,23 @@ const AdminPage = () => {
                     </td>
                     <td className="p-4 text-slate-400">{usr.email}</td>
                     <td className="p-4">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                        usr.role === 'admin' 
-                          ? 'bg-sky-500/10 text-sky-400 border-sky-500/30' 
-                          : 'bg-slate-800 text-slate-400 border-slate-700'
-                      }`}>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${usr.role === 'admin'
+                        ? 'bg-sky-500/10 text-sky-400 border-sky-500/30'
+                        : 'bg-slate-800 text-slate-400 border-slate-700'
+                        }`}>
                         {usr.role}
                       </span>
                     </td>
                     <td className="p-4 text-xs">{new Date(usr.createdAt).toLocaleDateString()}</td>
                     <td className="p-4">
                       <div className="flex justify-center gap-2">
-                        <button 
+                        <button
                           onClick={() => handleToggleUserRole(usr)}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-sky-500 hover:text-white rounded-lg text-xs font-semibold text-slate-400 transition-all border border-slate-700"
                         >
                           <FiUsers className="w-3.5 h-3.5" /> Toggle Role
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDeleteUser(usr._id)}
                           className="p-2 bg-slate-800 hover:bg-red-500 hover:text-white rounded-lg text-slate-400 transition-all border border-slate-700"
                         >
@@ -560,8 +571,8 @@ const AdminPage = () => {
         {isProductModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsProductModalOpen(false)} />
-            
-            <motion.div 
+
+            <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
@@ -571,7 +582,7 @@ const AdminPage = () => {
                 <h3 className="text-xl font-bold text-white">
                   {editingProduct ? 'Edit Catalog Product' : 'Add New Sneaker'}
                 </h3>
-                <button 
+                <button
                   onClick={() => setIsProductModalOpen(false)}
                   className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-200"
                 >
@@ -583,20 +594,20 @@ const AdminPage = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs text-slate-400 font-semibold uppercase">Product Name</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={productForm.name}
-                      onChange={(e) => setProductForm({...productForm, name: e.target.value})}
+                      onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
                       className="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500"
                       required
                     />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs text-slate-400 font-semibold uppercase">Brand</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={productForm.brand}
-                      onChange={(e) => setProductForm({...productForm, brand: e.target.value})}
+                      onChange={(e) => setProductForm({ ...productForm, brand: e.target.value })}
                       className="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500"
                       required
                     />
@@ -606,31 +617,31 @@ const AdminPage = () => {
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs text-slate-400 font-semibold uppercase">Price ($)</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       step="0.01"
                       value={productForm.price}
-                      onChange={(e) => setProductForm({...productForm, price: e.target.value})}
+                      onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
                       className="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500"
                       required
                     />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs text-slate-400 font-semibold uppercase">Discount Price</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       step="0.01"
                       value={productForm.discountPrice}
-                      onChange={(e) => setProductForm({...productForm, discountPrice: e.target.value})}
+                      onChange={(e) => setProductForm({ ...productForm, discountPrice: e.target.value })}
                       className="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500"
                     />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs text-slate-400 font-semibold uppercase">Stock Quantity</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       value={productForm.stock}
-                      onChange={(e) => setProductForm({...productForm, stock: e.target.value})}
+                      onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })}
                       className="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500"
                       required
                     />
@@ -639,9 +650,9 @@ const AdminPage = () => {
 
                 <div className="space-y-1">
                   <label className="text-xs text-slate-400 font-semibold uppercase">Category</label>
-                  <select 
+                  <select
                     value={productForm.category}
-                    onChange={(e) => setProductForm({...productForm, category: e.target.value})}
+                    onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500"
                   >
                     <option value="Running">Running</option>
@@ -654,25 +665,50 @@ const AdminPage = () => {
                 </div>
 
                 <div className="space-y-1">
+                  <label className="text-xs text-slate-400 font-semibold uppercase">Product Image URL</label>
+                  <input
+                    type="text"
+                    value={productForm.imageUrl}
+                    onChange={(e) => setProductForm({ ...productForm, imageUrl: e.target.value })}
+                    placeholder="/assets/sneaker-1.webp or image link"
+                    className="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500"
+                    required
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 py-2">
+                  <input
+                    type="checkbox"
+                    id="isFeatured"
+                    checked={productForm.isFeatured}
+                    onChange={(e) => setProductForm({ ...productForm, isFeatured: e.target.checked })}
+                    className="w-4 h-4 text-sky-500 bg-slate-950 border-slate-850 rounded focus:ring-sky-500 focus:ring-offset-slate-900 focus:ring-2"
+                  />
+                  <label htmlFor="isFeatured" className="text-sm text-slate-300 font-medium cursor-pointer select-none">
+                    Feature this product on the home page
+                  </label>
+                </div>
+
+                <div className="space-y-1">
                   <label className="text-xs text-slate-400 font-semibold uppercase">Description</label>
-                  <textarea 
+                  <textarea
                     value={productForm.description}
-                    onChange={(e) => setProductForm({...productForm, description: e.target.value})}
+                    onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500 min-h-[100px]"
                     required
                   />
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => setIsProductModalOpen(false)}
                     className="px-5 py-2.5 bg-slate-850 hover:bg-slate-800 text-slate-300 font-semibold rounded-xl text-sm transition-all"
                   >
                     Cancel
                   </button>
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     className="px-5 py-2.5 bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded-xl text-sm transition-all shadow-lg shadow-sky-500/20"
                   >
                     Save Changes

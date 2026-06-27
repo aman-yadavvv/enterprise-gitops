@@ -48,7 +48,7 @@ const FeaturedSection = () => {
             Best Selling <span className="gradient-text">Sneakers</span>
           </h2>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            Explore our most popular styles that combine cutting-edge design with 
+            Explore our most popular styles that combine cutting-edge design with
             unparalleled comfort.
           </p>
         </motion.div>
@@ -88,7 +88,7 @@ const FeaturedSection = () => {
                     </span>
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-dark/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  
+
                   {/* Quick View Button */}
                   <Link
                     to={`/product/${product._id || product.id}`}

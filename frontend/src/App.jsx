@@ -15,6 +15,7 @@ const CartPage = lazy(() => import('./pages/CartPage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 const AboutPage = lazy(() => import('./pages/AboutPage'))
 const AdminPage = lazy(() => import('./pages/AdminPage'))
+const CheckoutPage = lazy(() => import('./pages/CheckoutPage'))
 
 const queryClient = new QueryClient()
 
@@ -41,6 +42,7 @@ function App() {
                       <Route path="/shop" element={<ShopPage />} />
                       <Route path="/product/:id" element={<ProductDetailPage />} />
                       <Route path="/cart" element={<CartPage />} />
+                      <Route path="/checkout" element={<CheckoutPage />} />
                       <Route path="/login" element={<LoginPage />} />
                       <Route path="/about" element={<AboutPage />} />
                     </Routes>

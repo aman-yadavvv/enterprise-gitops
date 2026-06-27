@@ -2,8 +2,74 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { FiArrowRight } from 'react-icons/fi'
+import { useFeaturedProducts } from '../../hooks/useProducts'
 
 const HeroSection = () => {
+  const { data, isLoading } = useFeaturedProducts()
+  const featuredProduct = data?.data?.products?.[0]
+
+  // Dynamic values or fallback static values
+  const hasProduct = !!featuredProduct
+  const tag = hasProduct ? `🔥 Featured: ${featuredProduct.brand}` : '🔥 New Collection 2026'
+  const titleText = hasProduct ? (
+    <>
+      <span className="text-white">Introducing</span>
+      <br />
+      <span className="gradient-text">{featuredProduct.name}</span>
+    </>
+  ) : (
+    <>
+      <span className="text-white">Step Into</span>
+      <br />
+      <span className="gradient-text">The Future</span>
+      <br />
+      <span className="text-white">Of Style</span>
+    </>
+  )
+  
+  const description = hasProduct 
+    ? featuredProduct.description 
+    : 'Discover the perfect blend of comfort and style with our premium collection of sneakers. Designed for those who dare to be different.'
+
+  const primaryBtnText = hasProduct ? 'Buy Now' : 'Shop Now'
+  const primaryBtnLink = hasProduct ? `/product/${featuredProduct._id}` : '/shop'
+  const secondaryBtnLink = '/shop'
+  
+  const mainImage = hasProduct 
+    ? (featuredProduct.images?.[0]?.url || '/assets/placeholder.jpg')
+    : '/assets/hero-sneaker.webp'
+
+  // Discount or Price badge
+  const discountBadge = hasProduct && featuredProduct.discountPrice ? (
+    <div className="text-center">
+      <p className="text-2xl font-bold text-white">
+        {Math.round(((featuredProduct.price - featuredProduct.discountPrice) / featuredProduct.price) * 100)}%
+      </p>
+      <p className="text-xs text-gray-300">Off Selected</p>
+    </div>
+  ) : (
+    <div className="text-center">
+      <p className="text-2xl font-bold text-white">50%</p>
+      <p className="text-xs text-gray-300">Limited Offer</p>
+    </div>
+  )
+
+  // Views or sold badge
+  const viewsBadge = hasProduct ? (
+    <div className="flex items-center gap-2">
+      <span className="text-sm text-white font-semibold">{featuredProduct.views || 0} views</span>
+    </div>
+  ) : (
+    <div className="flex items-center gap-2">
+      <div className="flex -space-x-2">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="w-8 h-8 rounded-full bg-primary-500 border-2 border-dark" />
+        ))}
+      </div>
+      <span className="text-sm text-white font-semibold">2K+ sold</span>
+    </div>
+  )
+
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-dark via-dark to-primary-900">
       {/* Background Animation */}
@@ -29,7 +95,7 @@ const HeroSection = () => {
               className="inline-block px-4 py-2 bg-primary-500/20 border border-primary-500/30 rounded-full"
             >
               <span className="text-primary-400 text-sm font-semibold">
-                🔥 New Collection 2026
+                {tag}
               </span>
             </motion.div>
 
@@ -39,11 +105,7 @@ const HeroSection = () => {
               transition={{ delay: 0.3 }}
               className="text-5xl md:text-7xl font-display font-extrabold leading-tight"
             >
-              <span className="text-white">Step Into</span>
-              <br />
-              <span className="gradient-text">The Future</span>
-              <br />
-              <span className="text-white">Of Style</span>
+              {titleText}
             </motion.h1>
 
             <motion.p
@@ -52,8 +114,7 @@ const HeroSection = () => {
               transition={{ delay: 0.4 }}
               className="text-lg text-gray-300 max-w-lg leading-relaxed"
             >
-              Discover the perfect blend of comfort and style with our premium collection 
-              of sneakers. Designed for those who dare to be different.
+              {description}
             </motion.p>
 
             <motion.div
@@ -63,18 +124,18 @@ const HeroSection = () => {
               className="flex flex-wrap gap-4"
             >
               <Link
-                to="/shop"
+                to={primaryBtnLink}
                 className="group relative px-8 py-4 bg-primary-500 text-white font-semibold rounded-full overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-primary-500/30"
               >
                 <span className="relative z-10 flex items-center gap-2">
-                  Shop Now
+                  {primaryBtnText}
                   <FiArrowRight className="group-hover:translate-x-2 transition-transform" />
                 </span>
                 <div className="absolute inset-0 bg-gradient-to-r from-primary-600 to-secondary-600 opacity-0 group-hover:opacity-100 transition-opacity" />
               </Link>
               
               <Link
-                to="/shop"
+                to={secondaryBtnLink}
                 className="px-8 py-4 border-2 border-white/20 text-white font-semibold rounded-full hover:bg-white/10 transition-all duration-300 hover:scale-105"
               >
                 Explore Collection
@@ -116,7 +177,7 @@ const HeroSection = () => {
               className="relative w-full max-w-lg"
             >
               <img
-                src="/assets/hero-sneaker.webp"
+                src={mainImage}
                 alt="Premium Sneaker"
                 className="w-full h-auto drop-shadow-2xl"
               />
@@ -127,10 +188,7 @@ const HeroSection = () => {
                 transition={{ delay: 1 }}
                 className="absolute -top-10 -right-10 bg-white/10 backdrop-blur-lg rounded-2xl p-4 border border-white/20"
               >
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-white">50%</p>
-                  <p className="text-xs text-gray-300">Limited Offer</p>
-                </div>
+                {discountBadge}
               </motion.div>
               <motion.div
                 initial={{ opacity: 0, scale: 0 }}
@@ -138,14 +196,7 @@ const HeroSection = () => {
                 transition={{ delay: 1.2 }}
                 className="absolute -bottom-5 -left-5 bg-white/10 backdrop-blur-lg rounded-2xl p-4 border border-white/20"
               >
-                <div className="flex items-center gap-2">
-                  <div className="flex -space-x-2">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="w-8 h-8 rounded-full bg-primary-500 border-2 border-dark" />
-                    ))}
-                  </div>
-                  <span className="text-sm text-white font-semibold">2K+ sold</span>
-                </div>
+                {viewsBadge}
               </motion.div>
             </motion.div>
           </motion.div>
