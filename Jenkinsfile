@@ -27,8 +27,13 @@ pipeline {
 
         stage('AWS ECR Authentication') {
             steps {
-                // Ensure the Jenkins server has the AWS CLI installed or IAM role attached
-                sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}"
+                script {
+                    // Step 1: Get the login token safely into a variable
+                    def ecrToken = sh(script: "aws ecr get-login-password --region ${AWS_REGION}", returnStdout: true).trim()
+                    
+                    // Step 2: Pass the variable securely to Docker without using a risky pipe character
+                    sh "echo '${ecrToken}' | docker login --username AWS --password-stdin ${ECR_REGISTRY}"
+                }
             }
         }
 
