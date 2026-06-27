@@ -10,7 +10,7 @@ pipeline {
         BACKEND_REPO   = "shoe-shopping-page-backend"
         
         // Target manifest repository for GitOps tracking
-        GITOPS_REPO    = "github.com/YOUR_GITHUB_USERNAME/enterprise-gitops-manifests.git"
+        GITOPS_REPO    = "github.com/aman-yadavvv/enterprise-gitops-manifests.git"
     }
     
     stages {
