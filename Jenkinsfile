@@ -25,14 +25,17 @@ pipeline {
             }
         }
 
-        stage('AWS ECR Authentication') {
+       stage('AWS ECR Authentication') {
             steps {
                 script {
-                    // Step 1: Get the login token safely into a variable
-                    def ecrToken = sh(script: "aws ecr get-login-password --region ${AWS_REGION}", returnStdout: true).trim()
-                    
-                    // Step 2: Pass the variable securely to Docker without using a risky pipe character
-                    sh "echo '${ecrToken}' | docker login --username AWS --password-stdin ${ECR_REGISTRY}"
+                    // Injecting AWS credentials safely into the environment block
+                    withCredentials([
+                        string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
+                        string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
+                        def ecrToken = sh(script: "aws ecr get-login-password --region ${AWS_REGION}", returnStdout: true).trim()
+                        sh "echo '${ecrToken}' | docker login --username AWS --password-stdin ${ECR_REGISTRY}"
+                    }
                 }
             }
         }
